@@ -12,22 +12,22 @@ OUTPUTDIR := bin/
 # CFLAGS += -O2
 # endif
 
-HEADERS := src/*.h
+HEADERS := src/include/*.hpp
+SOURCES := src/*.cpp
 
 CXX=g++ -m64
-CXXFLAGS=-Wall -g
+CFLAGS=-std=c++14 -fvisibility=hidden -lpthread
 
 .SUFFIXES:
 .PHONY: all clean
 
 all: canny-filter
 
-canny-filter: main.o
-	$(CXX) $(CXXFLAGS) -o $@ canny-filter main.o
+canny-filter: $(SOURCES) $(HEADERS)
+	$(CXX) -o $@ $(CFLAGS) $(SOURCES)
 
-main.o: src/main.cpp
-	$(CXX) $< $(CXXFLAGS) -c -o $@
-
+clean:
+	rm -rf ./canny-filter
 
 
 # canny-filter: $(HEADERS) main.cpp
@@ -36,8 +36,5 @@ main.o: src/main.cpp
 # nbody-$(CONFIGURATION)-v2: $(HEADERS) src/mpi-simulator-v2.cpp
 # 	$(CXX) -o $@ $(CFLAGS) src/mpi-simulator-v2.cpp
 
-clean:
-	rm -rf ./canny-filter
-
-FILES = src/*.cpp \
-		src/*.h
+# FILES = src/*.cpp \
+# 		src/*.h

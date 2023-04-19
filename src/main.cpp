@@ -1,13 +1,14 @@
 #include <iostream>
+#include "include/filters.hpp"
 
 using namespace std;
-using namespace cv;
+// using namespace cv;
 
 int height, width;
 char type[10];
 int intensity;
 
-int main(int argc, int* argv) {
+int main(int argc, char* argv[]) {
     // the make file will pass in argument for file name
     // take file and get the pixel data struct for it
     // pass it into the overall canny filter
@@ -20,7 +21,7 @@ int main(int argc, int* argv) {
     
     // string image_path = image_name;
     
-    string image_path = "sample_image.jpg";
+    string image_path = "./sample_image.pgm";
     ifstream ifimage(image_path, ios::binary);
     ofstream ofimage("./output_images/canny_img.pgm", ios::binary);
     if (!ifimage.is_open()) {
@@ -32,20 +33,25 @@ int main(int argc, int* argv) {
     ifimage >> ::type >> ::width >> ::height >> ::intensity;
     ofimage << type << endl << width << " " << height << endl << intensity << endl;
 
-    char* image = new char[width*height];
+    Frame *image = new Frame();
+    image->data = new char[width*height];
+    image->height = height;
+    image->width = width;
 
     for (int i = 0; i < (width*height); i++) {
-        image[i] = (char)ifimage.get();
+        image->data[i] = (char)ifimage.get();
     }
 
     //apply gaussian blur
-    char* gaussIm = new double[width*height];
+    Frame *gaussIm = new Frame();
+    gaussIm->data = new char[width*height];
+    gaussIm->height = height;
+    gaussIm->width = width;
+
     gaussianBlur(image, gaussIm);
 
-
-
     for (int r = 0; r < (width*height); r++) {
-        ofimage << final[r];
+        ofimage << gaussIm->data[r];
     }
 
     return 0;

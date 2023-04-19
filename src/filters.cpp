@@ -7,10 +7,10 @@ step 4: double threshold
 step 5: hysteresis
 */
 #include <iostream>
-#include <opencv2/opencv.hpp>
+// #include <opencv2/opencv.hpp>
 #include "include/filters.hpp"
 
-using namespace cv;
+using namespace std;
 #define kernel_size 3
 
 int kernel[3][3] = {1, 2, 1,
@@ -27,82 +27,105 @@ int Ky[3][3] = {1, 2, 1,
 
 
 
-void gaussianBlur(Frame &orig, Frame &res) {
-
+void gaussianBlur(Frame *orig, Frame *res) {
+    cout << "in blurring mode\n";
     int width = orig->width;
     int height = orig->height;
     
     int pixel_value = 0;
     int res_value = 0;
-    int row, nrow = 0;
-    int col, ncol = 0;
+    int y, ny = 0;
+    int x, nx = 0;
     int weightedSum, sum = 0;
-
+    // printf("height = %d\n", orig->height);
+    // fflush(stdout);
+    // printf("width = %d\n", orig->width);
+    // fflush(stdout);
     // launch a kernel here
     for (int index = 0; index < width*height; index ++) {
         
-        row = index / height;
-        col = index % width;
+        y = index / width;
+        // printf("the y is %d\n", y);
+        x = index % height;
+        // printf("the x is %d\n", x);
+        // if (row == 0) continue;
+        // if (row == (height-1)) continue;
+        // if (col == 0) continue;
+        // if (col == (width-1)) continue;
         weightedSum, sum = 0;
-        
         for (int i = -1; i <= 1; i++) {
             for (int j = -1; j <= 1; j++) {
-                nrow = row + i;
-                nrow = col + j;
-                if (nrow >= 0 && nrow < height && ncol >= 0 && ncol < width) {
+                nx = x + i;
+                ny = y + j;
+                if (ny >= 0 && ny < height && nx >= 0 && nx < width) {
                     pixel_value = orig->data[index];
                     weightedSum += pixel_value * kernel[i+1][j+1];
                     sum += kernel[i+1][j+1];
+                    // if (index == 164430) {
+                    //     printf("YAY");
+                    // }
                 }
+                // if (index == 164430) {
+                //         printf("the kernel value for i:%d, j:%d, is %d\n", i, j, kernel[i+1][j+1]);
+                //         printf("and the sum is %d \n", sum);
+                //         printf("the x is %d and the y is %d and the width is %d and the height is %d\n", x, y, width, height);
+                //     }
             }
         }
-        res->data[index] = (unsigned char)weightedSum/sum;
+        // printf("index: %d\n", index);
+        // printf("sum: %d\n", sum);
+        // printf("weighted sum: %d\n", weightedSum);
+        // fflush(stdout);
+        res->data[index] = (char)weightedSum/sum;
+        // printf("index: %d\n", index);
     }
+    cout << "done going through the thing";
 
-    res->height = height;
-    res->width = width;
+    // res->height = height;
+    // res->width = width;
 
-    return res;
+    // return res;
 }
 
 
-void sobelFilters(Frame &orig, Frame &gradient, Frame &angle) {
+// void sobelFilters(Frame *orig, Frame *gradient, Frame *angle) {
 
-    int width = orig->width;
-    int height = orig->height;
-    int row, nrow = 0;
-    int col, ncol = 0;
-    int sumX, sumY = 0;
+//     int width = orig->width;
+//     int height = orig->height;
+//     int row, nrow = 0;
+//     int col, ncol = 0;
+//     int sumX, sumY = 0;
 
-    for (int index = 0; index < width*height; index ++) {
+//     for (int index = 0; index < width*height; index ++) {
         
-        row = index / height;
-        col = index % width;
-        sumX, sumY = 0;
+//         row = index / height;
+//         col = index % width;
+//         sumX, sumY = 0;
         
-        for (int i = -1; i <= 1; i++) {
-            for (int j = -1; j <= 1; j++) {
-                nRow = row + j;
-                nCol = col + i;
-                if (nrow >= 0 && nrow < height && ncol >= 0 && ncol < width) {
-                    nIndex = nRow * width + nCol;
-                    sumX += orig->data[index] * Kx[i+1][j+1];
-                    sumY += orig->data[index] * Kx[i+1][j+1];
-                }
-            }
-        }
+//         for (int i = -1; i <= 1; i++) {
+//             for (int j = -1; j <= 1; j++) {
+//                 nRow = row + j;
+//                 nCol = col + i;
+//                 if (nrow >= 0 && nrow < height && ncol >= 0 && ncol < width) {
+//                     nIndex = nRow * width + nCol;
+//                     sumX += orig->data[index] * Kx[i+1][j+1];
+//                     sumY += orig->data[index] * Kx[i+1][j+1];
+//                 }
+//             }
+//         }
 
-        gradient->width = orig->width;
-        gradient->height = orig->height;
-        angle->width = orig->width;
-        angle->height = orig->height;
+//         gradient->width = orig->width;
+//         gradient->height = orig->height;
+//         angle->width = orig->width;
+//         angle->height = orig->height;
 
-        gradient->data[index] = (unsigned char)sqrt(sumX * sumX + sumY * sumY);
-        angle->data[index] = (unsigned char)(atan2(sumY, sumX) * 180) / 3.1415; // pi macro?? 
+//         gradient->data[index] = (unsigned char)sqrt(sumX * sumX + sumY * sumY);
+//         angle->data[index] = (unsigned char)(atan2(sumY, sumX) * 180) / 3.1415; // pi macro?? 
         
 
-    }
-}
+//     }
+// }
+
 
 void nonMaximumSuppression(Frame &gradient, Frame &angle, Frame &res) {
     // every 45 degrees?
@@ -153,6 +176,7 @@ void nonMaximumSuppression(Frame &gradient, Frame &angle, Frame &res) {
     }
 }
 
-void doubleThreshold(Frame &orig, Frame &res, int lo, int hi);
 
-void hysteresis(Frame &orig, Frame &res, int lo, int hi);
+// void doubleThreshold(Frame &orig, Frame &res, int lo, int hi);
+
+// void hysteresis(Frame &orig, Frame &res, int lo, int hi);
