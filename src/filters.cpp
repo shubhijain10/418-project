@@ -104,7 +104,54 @@ void sobelFilters(Frame &orig, Frame &gradient, Frame &angle) {
     }
 }
 
-void nonMaximumSuppression(Frame &gradient, Frame &angle, Frame &res);
+void nonMaximumSuppression(Frame &gradient, Frame &angle, Frame &res) {
+    // every 45 degrees?
+    int width = gradient->width;
+    int height = gradient->height;
+    int gradient, angle, maxGradient = 0;
+
+    for (int i = 0; i < width * height; i++) {
+        if (gradient[i] > maxGradient) maxGradient = gradient[i];
+    }
+    int strong = .1 * maxGradient;
+    int weak = .05 * maxGradient;
+
+    for (int i = 0; i < width * height; i++) {
+        g = (int)gradient->data[i];
+        angle = (int)angle->data[i] % 180;
+
+        row = i / width;
+        col = i % height;
+
+        int index1, index2;
+
+        // a bunch of if conditions and you set valley 1 and valley 2 based on where they lie
+        if ((angle >= 157.5) || (angle < 22.5)) {
+            index1 = (row + 1) * width + col;
+            index2 = (row - 1) * width + col;
+        } else if ((angle >= 22.5) && (angle < 67.5)) {
+            index1 = (row + 1) * width + (col - 1);
+            index2 = (row - 1) * width + (col + 1);
+        } else if ((angle >= 67.5) && (angle < 112.5)) {
+            index1 = row * width + (col + 1);
+            index2 = row * width + (col - 1);
+        } else {
+            index1 = (row + 1) * width + (col + 1);
+            index2 = (row - 1) * width + (col - 1);
+        }
+
+        valley1 = gradient[index1];
+        valley2 = gradient[index2];
+        if ((valley1 < gradient) && (valley2 < gradient)) {
+            if (g >= strong) res->data[i] = strong;
+            else if (g >= weak) res->data[i] = weak;
+            else res->data[i] = 0;
+        } else {
+            res->data[i] = 0;
+        }
+        
+    }
+}
 
 void doubleThreshold(Frame &orig, Frame &res, int lo, int hi);
 
