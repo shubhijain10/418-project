@@ -44,14 +44,38 @@ int main(int argc, char* argv[]) {
 
     //apply gaussian blur
     Frame *gaussIm = new Frame();
+    Frame *gradient = new Frame();
+    Frame *angle = new Frame();
+    Frame *suppressed = new Frame();
+    Frame *finished = new Frame();
+
     gaussIm->data = new unsigned char[width*height];
+    gradient->data = new unsigned char[width*height];
+    angle->data = new unsigned char[width*height];
+    suppressed->data = new unsigned char[width*height];
+    finished->data = new unsigned char[width*height];
+
     gaussIm->height = height;
+    gradient->height = height;
+    angle->height = height;
+    suppressed->height = height;
+    finished->height = height;
+
     gaussIm->width = width;
+    gradient->width = width;
+    angle->width = width;
+    suppressed->width = width;
+    finished->width = width;
+
+    int maxGradient;
 
     gaussianBlur(image, gaussIm);
+    sobelFilters(gaussIm, gradient, angle);
+    maxGradient = nonMaximumSuppression(gradient, angle, suppressed);
+    hysteresis(suppressed, finished, maxGradient);
 
     for (int r = 0; r < (width*height); r++) {
-        ofimage << gaussIm->data[r];
+        ofimage << finished->data[r];
     }
 
     return 0;

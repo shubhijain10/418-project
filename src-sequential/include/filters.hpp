@@ -24,12 +24,12 @@ struct Frame {
 
 void gaussianBlur(Frame *orig, Frame *res);
 
-// void sobelFilters(Frame &orig, Frame &gradient, Frame &angle);
+void sobelFilters(Frame *orig, Frame *gradient, Frame *angle);
 
-// void nonMaximumSuppression(Frame &gradient, Frame &angle, Frame &res);
+int nonMaximumSuppression(Frame *gradient, Frame *angle, Frame *res);
 
 // void doubleThreshold(Frame &orig, Frame &res, int lo, int hi);
 
-// void hysteresis(Frame &orig, Frame &res, int lo, int hi);
+void hysteresis(Frame *orig, Frame *res, int maxGradient);
 
 #endif
