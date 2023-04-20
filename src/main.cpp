@@ -5,7 +5,7 @@ using namespace std;
 // using namespace cv;
 
 int height, width;
-char type[10];
+unsigned char type[10];
 int intensity;
 
 int main(int argc, char* argv[]) {
@@ -21,7 +21,7 @@ int main(int argc, char* argv[]) {
     
     // string image_path = image_name;
     
-    string image_path = "./sample_image.pgm";
+    string image_path = "./lena.pgm";
     ifstream ifimage(image_path, ios::binary);
     ofstream ofimage("./output_images/canny_img.pgm", ios::binary);
     if (!ifimage.is_open()) {
@@ -34,17 +34,17 @@ int main(int argc, char* argv[]) {
     ofimage << type << endl << width << " " << height << endl << intensity << endl;
 
     Frame *image = new Frame();
-    image->data = new char[width*height];
+    image->data = new unsigned char[width*height];
     image->height = height;
     image->width = width;
 
     for (int i = 0; i < (width*height); i++) {
-        image->data[i] = (char)ifimage.get();
+        image->data[i] = (unsigned char)ifimage.get();
     }
 
     //apply gaussian blur
     Frame *gaussIm = new Frame();
-    gaussIm->data = new char[width*height];
+    gaussIm->data = new unsigned char[width*height];
     gaussIm->height = height;
     gaussIm->width = width;
 

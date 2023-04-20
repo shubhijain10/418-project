@@ -19,7 +19,7 @@ step 5: hysteresis
 struct Frame {
     int width;
     int height;
-    char *data;
+    unsigned char *data;
 };
 
 void gaussianBlur(Frame *orig, Frame *res);
