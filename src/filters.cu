@@ -26,11 +26,11 @@ __constant__ int kernel5[5][5] = {1, 4, 7, 4, 1,
                 4, 16, 26, 16, 4,
                 1, 4, 7, 4, 1};
 
-int Kx[3][3] = {-1, 0, 1,
+__constant__ int Kx[3][3] = {-1, 0, 1,
             -2, 0, 2,
             -1, 0, 1};
 
-int Ky[3][3] = {1, 2, 1,
+__constant__ int Ky[3][3] = {1, 2, 1,
             0, 0, 0,
             -1, -2, -1};
 
@@ -72,154 +72,192 @@ __global__ void gaussianBlur(unsigned char* orig, unsigned char* res, int width,
 }
 
 
-// void sobelFilters(Frame *orig, Frame *gradient, Frame *angle) {
+__global__ void sobelFilters(unsigned char *orig, unsigned char *gradient, unsigned char *angle, int width, int height) {
 
-//     int width = orig->width;
-//     int height = orig->height;
-//     int row, nrow = 0;
-//     int col, ncol = 0;
-//     int sumX, sumY = 0;
-//     int nIndex = 0;
-//     //printf("here: %d\n", 0);
-//     for (int index = 0; index < width*height; index ++) {
+    int row, nrow = 0;
+    int col, ncol = 0;
+    int sumX, sumY = 0;
+    int nIndex = 0;
+    //printf("here: %d\n", 0);
+    for (int index = 0; index < width*height; index ++) {
         
-//         row = index / height;
-//         col = index % width;
-//         sumX = 0;
-//         sumY = 0;
-//         //printf("here: %d\n", 1);
-//         for (int i = -1; i <= 1; i++) {
-//             for (int j = -1; j <= 1; j++) {
-//                 nrow = row + j;
-//                 ncol = col + i;
-//                 if (nrow >= 0 && nrow < height && ncol >= 0 && ncol < width) {
-//                     nIndex = nrow * width + ncol;
-//                     //printf("here: %d\n", 2);
-//                     sumX += orig->data[nIndex] * Kx[i+1][j+1];
-//                     sumY += orig->data[nIndex] * Ky[i+1][j+1];
-//                     //printf("here: %d\n", 3);
-//                 }
-//             }
-//         }
-//         //printf("here: %d\n", 4);
-//         gradient->width = orig->width;
-//         gradient->height = orig->height;
-//         angle->width = orig->width;
-//         angle->height = orig->height;
-//         //printf("here: %d\n", 5);
-//         gradient->data[index] = (char)sqrt(sumX * sumX + sumY * sumY);
-//         angle->data[index] = (char)(atan2(sumY, sumX) * 180) / 3.1415; // pi macro?? 
-//         //printf("here: %d\n", 6);
+        row = index / height;
+        col = index % width;
+        sumX = 0;
+        sumY = 0;
+        //printf("here: %d\n", 1);
+        for (int i = -1; i <= 1; i++) {
+            for (int j = -1; j <= 1; j++) {
+                nrow = row + j;
+                ncol = col + i;
+                if (nrow >= 0 && nrow < height && ncol >= 0 && ncol < width) {
+                    nIndex = nrow * width + ncol;
+                    //printf("here: %d\n", 2);
+                    sumX += orig[nIndex] * Kx[i+1][j+1];
+                    sumY += orig[nIndex] * Ky[i+1][j+1];
+                    //printf("here: %d\n", 3);
+                }
+            }
+        }
+        //printf("here: %d\n", 4);
+        
+        //printf("here: %d\n", 5);
+        gradient[index] = (char)sqrt((float)(sumX * sumX + sumY * sumY));
+        angle[index] = (char)(atan2((float)sumY, (float)sumX) * 180) / 3.1415; // pi macro?? 
+        //printf("here: %d\n", 6);
 
-//     }
+    }
     
-// }
+}
 
 
-// int nonMaximumSuppression(Frame *gradient, Frame *angle, Frame *res) {
-//     // every 45 degrees?
-//     int width = gradient->width;
-//     int height = gradient->height;
-//     int maxGradient = 0;
-//     int valley1, valley2;
+__global__ void nonMaximumSuppression(unsigned char *gradient, unsigned char *angle, unsigned char *res, int * MG, int width, int height) {
+    // every 45 degrees?
+   
+    int maxGradient = 0;
+    int valley1, valley2;
 
-//     for (int i = 0; i < width * height; i++) {
-//         if (gradient->data[i] > maxGradient) maxGradient = gradient->data[i];
-//     }
-//     int strong = .5 * maxGradient;
-//     int strongVal = .75 * maxGradient;
-//     int weak = .05 * maxGradient;
-//     int row, col = 0;
-//     int g, a;
+    for (int i = 0; i < width * height; i++) {
+        if (gradient[i] > maxGradient) maxGradient = gradient[i];
+    }
+    int strong = .5 * maxGradient;
+    int strongVal = .75 * maxGradient;
+    int weak = .05 * maxGradient;
+    int row, col = 0;
+    int g, a;
 
-//     for (int i = 0; i < width * height; i++) {
-//         g = (int)gradient->data[i];
-//         a = (int)angle->data[i] % 180;
+    for (int i = 0; i < width * height; i++) {
+        g = (int)gradient[i];
+        a = (int)angle[i] % 180;
 
-//         row = i / width;
-//         col = i % height;
+        row = i / width;
+        col = i % height;
 
-//         int index1, index2;
+        int index1, index2;
 
-//         //a bunch of if conditions and you set valley 1 and valley 2 based on where they lie
-//         if ((a >= 157.5) || (a < 22.5)) {
-//             index1 = (row + 1) * width + col;
-//             index2 = (row - 1) * width + col;
-//         } else if ((a >= 22.5) && (a < 67.5)) {
-//             index1 = (row + 1) * width + (col - 1);
-//             index2 = (row - 1) * width + (col + 1);
-//         } else if ((a >= 67.5) && (a < 112.5)) {
-//             index1 = row * width + (col + 1);
-//             index2 = row * width + (col - 1);
-//         } else {
-//             index1 = (row + 1) * width + (col + 1);
-//             index2 = (row - 1) * width + (col - 1);
-//         }
+        //a bunch of if conditions and you set valley 1 and valley 2 based on where they lie
+        if ((a >= 157.5) || (a < 22.5)) {
+            index1 = (row + 1) * width + col;
+            index2 = (row - 1) * width + col;
+        } else if ((a >= 22.5) && (a < 67.5)) {
+            index1 = (row + 1) * width + (col - 1);
+            index2 = (row - 1) * width + (col + 1);
+        } else if ((a >= 67.5) && (a < 112.5)) {
+            index1 = row * width + (col + 1);
+            index2 = row * width + (col - 1);
+        } else {
+            index1 = (row + 1) * width + (col + 1);
+            index2 = (row - 1) * width + (col - 1);
+        }
 
-//         valley1 = (gradient->data[index1]);
-//         valley2 = (gradient->data[index2]);
-//         if ((valley1 < g) && (valley2 < g)) {
-//             if (g >= strong) res->data[i] = strongVal;
-//             else if (g >= weak) res->data[i] = weak;
-//             else res->data[i] = 0;
-//         } else {
-//             res->data[i] = 0;
-//         }
+        valley1 = (gradient[index1]);
+        valley2 = (gradient[index2]);
+        if ((valley1 < g) && (valley2 < g)) {
+            if (g >= strong) res[i] = strongVal;
+            else if (g >= weak) res[i] = weak;
+            else res[i] = 0;
+        } else {
+            res[i] = 0;
+        }
         
-//     }
-//     return maxGradient;
-// }
+    }
+    *MG = maxGradient;
+}
 
 
-// // void doubleThreshold(Frame &orig, Frame &res, int lo, int hi);
+// void doubleThreshold(Frame &orig, Frame &res, int lo, int hi);
 
-// void hysteresis(Frame *orig, Frame *res, int maxGradient) {
+__global__ void hysteresis(unsigned char *orig, unsigned char *res, int * maxGradient, int width, int height) {
 
-//     int width = orig->width;
-//     int height = orig->height;
 
-//     int strong =  .1 * maxGradient;
-//     int strongVal = .75 * maxGradient;
-//     int weak = .05 * maxGradient;
-//     int row, col, nrow, ncol;
-//     int nIndex;
-//     bool strongExists = false;
+    int strong =  (int)(.1 * *maxGradient);
+    int strongVal = (int)(.75 * *maxGradient);
+    int weak = (int)(.05 * *maxGradient);
+    int row, col, nrow, ncol;
+    int nIndex;
+    bool strongExists = false;
 
-//     for (int i = 0; i < width * height; i++) {
+    for (int index = 0; index < width * height; index++) {
 
-//         row = i / width;
-//         col = i % height;
-//         if (orig->data[i] > weak) {
-//             for (int i = -2; i <= 2; i++) {
-//                 for (int j = -2; j <= 2; j++) {
-//                     nrow = row + j;
-//                     ncol = col + i;
-//                     if (nrow >= 0 && nrow < height && ncol >= 0 && ncol < width) {
-//                         nIndex = nrow * width + ncol;
-//                         if (orig->data[nIndex] >= strongVal) {
-//                             strongExists = true;
-//                         }
-//                     }
-//                 }
-//             }
-//             if (strongExists) res->data[i] = strongVal;
-//             else res->data[i] = 0;
-//         } else if (orig->data[i] > strong) res->data[i] = strongVal;
-//         strongExists = false;
-//     }
-// }
+        row = index / width;
+        col = index % height;
+        if (orig[index] > weak) {
+            for (int i = -2; i <= 2; i++) {
+                for (int j = -2; j <= 2; j++) {
+                    nrow = row + j;
+                    ncol = col + i;
+                    if (nrow >= 0 && nrow < height && ncol >= 0 && ncol < width) {
+                        nIndex = nrow * width + ncol;
+                        if (orig[nIndex] >= strongVal) {
+                            strongExists = true;
+                        }
+                    }
+                }
+            }
+            if (strongExists) res[index] = strongVal;
+            else res[index] = 0;
+        } else if (orig[index] > strong) res[index] = strongVal;
+        strongExists = false;
+    }
+}
 
 void cudaCanny(unsigned char* inImage, int width, int height, unsigned char* outImage) {
     // get the before and the after frame, will decrease the amount of memory
-    unsigned char* device_imageA, device_imageB;
-    cudaMalloc((void **)&(device_imageA), sizeof(unsigned char) * width * height);
-    cudaMalloc((void **)&(device_imageB), sizeof(unsigned char) * width * height);
+    // unsigned char* device_imageA, device_imageB;
+    // cudaMalloc((void **)&(device_imageA), sizeof(unsigned char) * width * height);
+    // cudaMalloc((void **)&(device_imageB), sizeof(unsigned char) * width * height);
 
-    cudaMemcpy(device_imageA, inImage, sizeof(unsigned char) * width * height, cudaMemcpyHostToDevice);
+    // cudaMemcpy(device_imageA, inImage, sizeof(unsigned char) * width * height, cudaMemcpyHostToDevice);
 
-    gaussianBlur<<<1, 1>>>((unsigned char*)device_imageA, (unsigned char*)device_imageB, width, height);
+    // gaussianBlur<<<1, 1>>>((unsigned char*)device_imageA, (unsigned char*)device_imageB, width, height);
 
-    cudaMemcpy(outImage, (void *)device_imageB, sizeof(unsigned char) * width * height, cudaMemcpyDeviceToHost);
-    cudaFree(device_imageA);
-    cudaFree((void*)device_imageB);
+    // cudaMemcpy(outImage, (void *)device_imageB, sizeof(unsigned char) * width * height, cudaMemcpyDeviceToHost);
+    // cudaFree(device_imageA);
+    // cudaFree((void*)device_imageB);
+
+    int maxGradient = 0;
+
+    unsigned char* device_image_orig;
+    unsigned char* device_image_gaussian;
+    unsigned char* device_image_gradient;
+    unsigned char* device_image_angle;
+    unsigned char* device_image_suppressed;
+    // unsigned char* device_image_hysteresis;
+
+
+    cudaMalloc((void **)&(device_image_orig), sizeof(unsigned char) * width * height);
+    cudaMalloc((void **)&(device_image_gaussian), sizeof(unsigned char) * width * height);
+    cudaMalloc((void **)&(device_image_gradient), sizeof(unsigned char) * width * height);
+    cudaMalloc((void **)&(device_image_angle), sizeof(unsigned char) * width * height);
+    cudaMalloc((void **)&(device_image_suppressed), sizeof(unsigned char) * width * height);
+    // cudaMalloc((void **)&(device_image_hysteresis), sizeof(unsigned char) * width * height);
+
+    cudaMemcpy(device_image_orig, inImage, sizeof(unsigned char) * width * height, cudaMemcpyHostToDevice);
+
+    gaussianBlur<<<1, 1>>>((unsigned char*)device_image_orig, 
+                            (unsigned char*)device_image_gaussian, 
+                            width, height);
+
+    sobelFilters<<<1, 1>>>((unsigned char*)device_image_gaussian, 
+                            (unsigned char*)device_image_gradient, 
+                            (unsigned char*)device_image_angle, 
+                            width, height);
+    
+    nonMaximumSuppression<<<1, 1>>>((unsigned char*)device_image_gradient, 
+                                    (unsigned char*)device_image_angle,  
+                                    (unsigned char*)device_image_suppressed,
+                                    (&maxGradient), width, height);
+
+    // hysteresis<<<1, 1>>>((unsigned char*)device_image_suppressed,
+    //                         (unsigned char*)device_image_hysteresis,  
+    //                         &maxGradient, width, height);
+
+    cudaMemcpy(outImage, (void *)device_image_suppressed, sizeof(unsigned char) * width * height, cudaMemcpyDeviceToHost);
+    
+    cudaFree((void *)device_image_orig);
+    cudaFree((void *)device_image_gaussian);
+    cudaFree((void *)device_image_gradient);
+    cudaFree((void *)device_image_angle);
+    cudaFree((void *)device_image_suppressed);
+//     cudaFree(device_image_hysteresis);
 }

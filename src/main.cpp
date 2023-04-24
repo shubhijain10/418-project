@@ -23,7 +23,7 @@ int main(int argc, char* argv[]) {
     
     string image_path = "./lena.pgm";
     ifstream ifimage(image_path, ios::binary);
-    ofstream ofimage("./output_images/canny_img.pgm", ios::binary);
+    ofstream ofimage("./output_images/canny_test_img.pgm", ios::binary);
     if (!ifimage.is_open()) {
         cout << "image file is empty";
         return -1;
