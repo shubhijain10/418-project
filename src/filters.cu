@@ -111,7 +111,7 @@ __global__ void sobelFilters(unsigned char *orig, unsigned char *gradient, unsig
 }
 
 
-__global__ void nonMaximumSuppression(unsigned char *gradient, unsigned char *angle, unsigned char *res, int * MG, int width, int height) {
+__global__ void nonMaximumSuppression(unsigned char *gradient, unsigned char *angle, unsigned char *res, int width, int height) {
     // every 45 degrees?
    
     int maxGradient = 0;
@@ -120,15 +120,18 @@ __global__ void nonMaximumSuppression(unsigned char *gradient, unsigned char *an
     for (int i = 0; i < width * height; i++) {
         if (gradient[i] > maxGradient) maxGradient = gradient[i];
     }
-    int strong = .5 * maxGradient;
-    int strongVal = .75 * maxGradient;
-    int weak = .05 * maxGradient;
+
+    unsigned char strong = .3 * maxGradient;
+    unsigned char strongVal = .75 * maxGradient;
+    unsigned char weak = .1 * maxGradient;
     int row, col = 0;
-    int g, a;
+    int a;
+    unsigned char g;
 
     for (int i = 0; i < width * height; i++) {
-        g = (int)gradient[i];
+        g = gradient[i];
         a = (int)angle[i] % 180;
+        
 
         row = i / width;
         col = i % height;
@@ -150,29 +153,41 @@ __global__ void nonMaximumSuppression(unsigned char *gradient, unsigned char *an
             index2 = (row - 1) * width + (col - 1);
         }
 
-        valley1 = (gradient[index1]);
-        valley2 = (gradient[index2]);
+        valley1 = gradient[index1];
+        valley2 = gradient[index2];
         if ((valley1 < g) && (valley2 < g)) {
-            if (g >= strong) res[i] = strongVal;
-            else if (g >= weak) res[i] = weak;
-            else res[i] = 0;
+            if (g >= strong) {
+                res[i] = strongVal;
+                printf("writing strong\n");
+            } else if (g >= weak) { 
+                res[i] = weak;
+                printf("writing weak\n");
+            } else { 
+                res[i] = 0;
+                printf("writing zero\n");
+            }
         } else {
             res[i] = 0;
         }
         
     }
-    *MG = maxGradient;
 }
 
 
 // void doubleThreshold(Frame &orig, Frame &res, int lo, int hi);
 
-__global__ void hysteresis(unsigned char *orig, unsigned char *res, int * maxGradient, int width, int height) {
+__global__ void hysteresis(unsigned char *orig, unsigned char *res, unsigned char *gradient, int width, int height) {
 
 
-    int strong =  (int)(.1 * *maxGradient);
-    int strongVal = (int)(.75 * *maxGradient);
-    int weak = (int)(.05 * *maxGradient);
+    int maxGradient = 0;
+
+    for (int i = 0; i < width * height; i++) {
+        if (gradient[i] > maxGradient) maxGradient = gradient[i];
+    }
+
+    int strong =  (int)(.3 * maxGradient);
+    int strongVal = (int)(.75 * maxGradient);
+    int weak = (int)(.1 * maxGradient);
     int row, col, nrow, ncol;
     int nIndex;
     bool strongExists = false;
@@ -202,27 +217,12 @@ __global__ void hysteresis(unsigned char *orig, unsigned char *res, int * maxGra
 }
 
 void cudaCanny(unsigned char* inImage, int width, int height, unsigned char* outImage) {
-    // get the before and the after frame, will decrease the amount of memory
-    // unsigned char* device_imageA, device_imageB;
-    // cudaMalloc((void **)&(device_imageA), sizeof(unsigned char) * width * height);
-    // cudaMalloc((void **)&(device_imageB), sizeof(unsigned char) * width * height);
-
-    // cudaMemcpy(device_imageA, inImage, sizeof(unsigned char) * width * height, cudaMemcpyHostToDevice);
-
-    // gaussianBlur<<<1, 1>>>((unsigned char*)device_imageA, (unsigned char*)device_imageB, width, height);
-
-    // cudaMemcpy(outImage, (void *)device_imageB, sizeof(unsigned char) * width * height, cudaMemcpyDeviceToHost);
-    // cudaFree(device_imageA);
-    // cudaFree((void*)device_imageB);
-
-    int maxGradient = 0;
-
     unsigned char* device_image_orig;
     unsigned char* device_image_gaussian;
     unsigned char* device_image_gradient;
     unsigned char* device_image_angle;
     unsigned char* device_image_suppressed;
-    // unsigned char* device_image_hysteresis;
+    unsigned char* device_image_hysteresis;
 
 
     cudaMalloc((void **)&(device_image_orig), sizeof(unsigned char) * width * height);
@@ -230,7 +230,7 @@ void cudaCanny(unsigned char* inImage, int width, int height, unsigned char* out
     cudaMalloc((void **)&(device_image_gradient), sizeof(unsigned char) * width * height);
     cudaMalloc((void **)&(device_image_angle), sizeof(unsigned char) * width * height);
     cudaMalloc((void **)&(device_image_suppressed), sizeof(unsigned char) * width * height);
-    // cudaMalloc((void **)&(device_image_hysteresis), sizeof(unsigned char) * width * height);
+    cudaMalloc((void **)&(device_image_hysteresis), sizeof(unsigned char) * width * height);
 
     cudaMemcpy(device_image_orig, inImage, sizeof(unsigned char) * width * height, cudaMemcpyHostToDevice);
 
@@ -243,21 +243,22 @@ void cudaCanny(unsigned char* inImage, int width, int height, unsigned char* out
                             (unsigned char*)device_image_angle, 
                             width, height);
     
-    nonMaximumSuppression<<<1, 1>>>((unsigned char*)device_image_gradient, 
-                                    (unsigned char*)device_image_angle,  
-                                    (unsigned char*)device_image_suppressed,
-                                    (&maxGradient), width, height);
+    nonMaximumSuppression<<<1, 1>>>(device_image_gradient, 
+                                    device_image_angle,  
+                                    device_image_suppressed,
+                                    width, height);
 
-    // hysteresis<<<1, 1>>>((unsigned char*)device_image_suppressed,
-    //                         (unsigned char*)device_image_hysteresis,  
-    //                         &maxGradient, width, height);
+    hysteresis<<<1, 1>>>((unsigned char*)device_image_suppressed,
+                            (unsigned char*)device_image_hysteresis,  
+                            (unsigned char*)device_image_gradient,
+                            width, height);
 
-    cudaMemcpy(outImage, (void *)device_image_suppressed, sizeof(unsigned char) * width * height, cudaMemcpyDeviceToHost);
+    cudaMemcpy(outImage, (void *)device_image_hysteresis, sizeof(unsigned char) * width * height, cudaMemcpyDeviceToHost);
     
     cudaFree((void *)device_image_orig);
     cudaFree((void *)device_image_gaussian);
     cudaFree((void *)device_image_gradient);
     cudaFree((void *)device_image_angle);
     cudaFree((void *)device_image_suppressed);
-//     cudaFree(device_image_hysteresis);
+    cudaFree(device_image_hysteresis);
 }
