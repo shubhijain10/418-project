@@ -21,7 +21,7 @@ int main(int argc, char* argv[]) {
     
     // string image_path = image_name;
     
-    string image_path = "./lena.pgm";
+    string image_path = "./square.pgm";
     ifstream ifimage(image_path, ios::binary);
     ofstream ofimage("./output_images/canny_cuda_img.pgm", ios::binary);
     if (!ifimage.is_open()) {
