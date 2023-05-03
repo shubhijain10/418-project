@@ -18,38 +18,62 @@ OUTPUTDIR := bin/
 HEADERS-CUDA := src/include/*.hpp
 SOURCES-CUDA := src/*.cpp
 
-OBJDIR=objs
-CXX=g++ -m64
+HEADERS-OPENMP := src-openmp/include/*.hpp
+SOURCES-OPENMP := src-openmp/*.cpp
+
+HEADERS-SEQ := src-sequential/include/*.hpp
+SOURCES-SEQ := src-sequential/*.cpp
+
+OBJDIR-CUDA=objs-cuda
+OBJDIR-OPENMP=objs-openmp
+CXX-CUDA=g++ -m64
 CXXFLAGS=-O3 -Wall
 LDFLAGS=-L/usr/local/cuda-11.7/lib64/ -lcudart
 NVCC=nvcc
 NVCCFLAGS=-O3 -m64 --gpu-architecture compute_61 -ccbin /usr/bin/gcc
 
-OBJS=$(OBJDIR)/main.o  $(OBJDIR)/filters.o
+CFLAGS := -std=c++14 -fvisibility=hidden -lpthread
+CFLAGS += -O2 -fopenmp
+
+OBJS-CUDA=$(OBJDIR-CUDA)/main.o  $(OBJDIR-CUDA)/filters.o
+OBJS-OPEMP=$(OBJDIR-OPENMP)/main.o  $(OBJDIR-OPENMP)/filters.o
 
 .SUFFIXES:
 .PHONY: all clean
 
-all: canny-cuda
+all: canny-cuda canny-openmp canny-seq
 
-dirs:
-		mkdir -p $(OBJDIR)/
+dirs-cuda:
+		mkdir -p $(OBJDIR-CUDA)/
 
-canny-cuda: dirs $(OBJS)
-	$(CXX) $(CXXFLAGS) -o $@ $(OBJS) $(LDFLAGS)
+dirs-openmp: 
+		mkdir -p $(OBJDIR-OPENMP)/
 
+canny-cuda: dirs-cuda $(OBJS-CUDA)
+	$(CXX-CUDA) $(CXXFLAGS) -o $@ $(OBJS-CUDA) $(LDFLAGS)
+
+canny-openmp: $(SOURCES-OPENMP) $(HEADERS-OPENMP)
+	$(CXX) -o $@ $(CFLAGS) $(SOURCES-OPENMP)
+
+canny-seq: $(SOURCES-SEQ) $(HEADERS-SEQ)
+	$(CXX) -o $@ $(CFLAGS) $(SOURCES-SEQ)
+
+# canny-openmp: dirs-openmp $(OBJS-OPENMP)
+# 	$(CXX) -o $@ $(CFLAGS) $(OBJS_OPENMP)
 # canny-seq: $(SOURCES-SEQ) $(HEADERS-SEQ)
 # 	$(CXX) -o $@ $(CFLAGS) $(SOURCES-SEQ)
 
 clean:
 	rm -rf ./canny-*
 
-$(OBJDIR)/%.o: src/%.cpp $(HEADERS-CUDA)
-		$(CXX) $< $(CXXFLAGS) -c -o $@
+$(OBJDIR-CUDA)/%.o: src/%.cpp $(HEADERS-CUDA)
+		$(CXX-CUDA) $< $(CXXFLAGS) -c -o $@
 
-$(OBJDIR)/%.o: src/%.cu $(HEADERS-CUDA)
+$(OBJDIR-CUDA)/%.o: src/%.cu $(HEADERS-CUDA)
 		$(NVCC) $< $(NVCCFLAGS) -c -o $@
 
+# $(OBJDIR-OPENMP)/%.o: src-openmp/%.cpp $(HEADERS-OPENMP)
+# 		$(CXX) $< $(CFLAGS) -c -o $@
 
 # canny-filter: $(HEADERS) main.cpp
 # 	$(CXX) -o $@ $(CFLAGS) src/mpi-simulator-v1.cpp

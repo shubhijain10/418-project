@@ -1,6 +1,7 @@
 #include <iostream>
-#include "include/filters.hpp"
+#include "include/global.hpp"
 #include "include/timing.hpp"
+
 using namespace std;
 // using namespace cv;
 
@@ -23,7 +24,7 @@ int main(int argc, char* argv[]) {
     
     string image_path = "./lena.pgm";
     ifstream ifimage(image_path, ios::binary);
-    ofstream ofimage("./output_images/canny_img.pgm", ios::binary);
+    ofstream ofimage("./output_images/canny_openmp_img.pgm", ios::binary);
     if (!ifimage.is_open()) {
         cout << "image file is empty";
         return -1;
