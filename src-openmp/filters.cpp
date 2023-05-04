@@ -45,7 +45,7 @@ void gaussianBlur(Frame *orig, Frame *res) {
     int x, nx = 0;
     int weightedSum, sum = 0;
     
-    // #pragma omp parallel
+    #pragma omp parallel for shared(orig, res, width, height) private(weightedSum, sum, y, ny, x, nx, pixel_value)
     for (int index = 0; index < width*height; index ++) {
         y = index / width;
         x = index % height;
@@ -80,7 +80,7 @@ void sobelFilters(Frame *orig, Frame *gradient, Frame *angle) {
     int sumX, sumY = 0;
     int nIndex = 0;
     //printf("here: %d\n", 0);
-    // #pragma omp parallel for schedule(dynamic)//resulted in 2 times speedup
+    #pragma omp parallel for shared(orig, gradient, angle, width, height) private(row, col, sumX, sumY, nrow, ncol, nIndex)
     for (int index = 0; index < width*height; index ++) {
         
         row = index / height;
@@ -123,6 +123,7 @@ int nonMaximumSuppression(Frame *gradient, Frame *angle, Frame *res) {
     int maxGradient = 0;
     int valley1, valley2;
 
+    #pragma omp parallel for schedule(static) reduction(max:maxGradient)
     for (int i = 0; i < width * height; i++) {
         if (gradient->data[i] > maxGradient) maxGradient = gradient->data[i];
     }
@@ -178,7 +179,6 @@ void hysteresis(Frame *orig, Frame *res, int maxGradient) {
 
     int width = orig->width;
     int height = orig->height;
-
     int strong =  .1 * maxGradient;
     int strongVal = .75 * maxGradient;
     int weak = .05 * maxGradient;
@@ -186,8 +186,7 @@ void hysteresis(Frame *orig, Frame *res, int maxGradient) {
     int nIndex;
     bool strongExists = false;
 
-    // #pragma omp parallel 
-    // {
+    #pragma omp parallel for private(row, col, nIndex, nrow, ncol, strongExists) schedule(static)
     for (int i = 0; i < width * height; i++) {
         
         row = i / width;
@@ -208,10 +207,10 @@ void hysteresis(Frame *orig, Frame *res, int maxGradient) {
                         }
                     }
                 }
-            // }
+            }
             if (strongExists) res->data[i] = strongVal;
             else res->data[i] = 0;
-        } 
+        // } 
             // }
         }
         else if (orig->data[i] > strong) res->data[i] = strongVal;

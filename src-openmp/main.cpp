@@ -1,6 +1,7 @@
 #include <iostream>
 #include "include/global.hpp"
 #include "include/timing.hpp"
+#include <omp.h>
 
 using namespace std;
 // using namespace cv;
@@ -21,7 +22,9 @@ int main(int argc, char* argv[]) {
     // }
     
     // string image_path = image_name;
-    
+    omp_set_dynamic(0);     
+    omp_set_num_threads(4);
+
     string image_path = "./lena.pgm";
     ifstream ifimage(image_path, ios::binary);
     ofstream ofimage("./output_images/canny_openmp_img.pgm", ios::binary);
@@ -78,6 +81,9 @@ int main(int argc, char* argv[]) {
 
     double totalSimulationTime = totalSimulationTimer.elapsed();
     printf("total simulation time: %.6fs\n", totalSimulationTime);
+
+    int curr_num = omp_get_num_threads();
+    printf("threads:%d\n", curr_num);
 
     for (int r = 0; r < (width*height); r++) {
         ofimage << finished->data[r];
