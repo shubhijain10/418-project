@@ -8,13 +8,17 @@ step 5: hysteresis
 */
 #include <iostream>
 #include <cmath>
+#include <driver_functions.h>
 // #include <opencv2/opencv.hpp>
 #include "include/global.hpp"
 #include "cuda_runtime.h"
+#include "include/CycleTimer.h"
 
 using namespace std;
 #define kernel_size 3
-
+extern float toBW(int bytes, float sec);
+#define BLOCKS 256
+#define THREADS_PER_BLOCK 256
 // __constant__ Frame ImageA, ImageB;
 
 __constant__ int kernel3[3][3] = {1, 2, 1,
@@ -45,32 +49,35 @@ __global__ void gaussianBlur(unsigned char* orig, unsigned char* res, int width,
 
     if ((index > (width * height)) || (index < 0)) return;
 
-    unsigned char pixel_value = 0;
-    // int res_value = 0;
-    int y, ny = 0;
-    int x, nx = 0;
-    int weightedSum, sum = 0;
+    while (index < (width * height)) {
+        unsigned char pixel_value = 0;
+        // int res_value = 0;
+        int y, ny = 0;
+        int x, nx = 0;
+        int weightedSum, sum = 0;
 
-    y = index / width;
-    x = index % height;
-    weightedSum = 0;
-    sum = 0;
-    
-    for (int i = -2; i <= 2; i++) {
-        for (int j = -2; j <= 2; j++) {
-            nx = x + i;
-            ny = y + j;
-            if (ny >= 0 && ny < height && nx >= 0 && nx < width) {
-                pixel_value = orig[ny * width + nx];
-                
-                weightedSum += pixel_value * kernel5[i+2][j+2];
-                //printf("pixel value: %d\n", pixel_value);
-                sum += kernel5[i+2][j+2];
+        y = index / width;
+        x = index % height;
+        weightedSum = 0;
+        sum = 0;
+        
+        for (int i = -2; i <= 2; i++) {
+            for (int j = -2; j <= 2; j++) {
+                nx = x + i;
+                ny = y + j;
+                if (ny >= 0 && ny < height && nx >= 0 && nx < width) {
+                    pixel_value = orig[ny * width + nx];
+                    
+                    weightedSum += pixel_value * kernel5[i+2][j+2];
+                    //printf("pixel value: %d\n", pixel_value);
+                    sum += kernel5[i+2][j+2];
+                }
             }
         }
+        unsigned char result = weightedSum/sum;
+        res[index] = (unsigned char)result;
+        index += BLOCKS * THREADS_PER_BLOCK;
     }
-    unsigned char result = weightedSum/sum;
-    res[index] = (unsigned char)result;
     
     return;
 }
@@ -80,42 +87,43 @@ __global__ void sobelFilters(unsigned char *orig, unsigned char *gradient, unsig
     int index = blockIdx.x * blockDim.x + threadIdx.x;
 
     if ((index > (width * height)) || (index < 0)) return;
-
-    int row, nrow = 0;
-    int col, ncol = 0;
-    int sumX, sumY = 0;
-    int nIndex = 0;
-    //printf("here: %d\n", 0);
-    
+    while (index < (width * height)) {
+        int row, nrow = 0;
+        int col, ncol = 0;
+        int sumX, sumY = 0;
+        int nIndex = 0;
+        //printf("here: %d\n", 0);
         
-    row = index / height;
-    col = index % width;
-    sumX = 0;
-    sumY = 0;
+            
+        row = index / height;
+        col = index % width;
+        sumX = 0;
+        sumY = 0;
 
-    //printf("here: %d\n", 1);
-    for (int i = -1; i <= 1; i++) {
-        for (int j = -1; j <= 1; j++) {
-            nrow = row + j;
-            ncol = col + i;
-            if (nrow >= 0 && nrow < height && ncol >= 0 && ncol < width) {
-                nIndex = nrow * width + ncol;
-                //printf("here: %d\n", 2);
-                sumX += orig[nIndex] * Kx[i+1][j+1];
-                sumY += orig[nIndex] * Ky[i+1][j+1];
-                //printf("here: %d\n", 3);
+        //printf("here: %d\n", 1);
+        for (int i = -1; i <= 1; i++) {
+            for (int j = -1; j <= 1; j++) {
+                nrow = row + j;
+                ncol = col + i;
+                if (nrow >= 0 && nrow < height && ncol >= 0 && ncol < width) {
+                    nIndex = nrow * width + ncol;
+                    //printf("here: %d\n", 2);
+                    sumX += orig[nIndex] * Kx[i+1][j+1];
+                    sumY += orig[nIndex] * Ky[i+1][j+1];
+                    //printf("here: %d\n", 3);
+                }
             }
         }
+
+            
+        //printf("here: %d\n", 4);
+
+        //printf("here: %d\n", 5);
+        gradient[index] = (char)sqrt((float)(sumX * sumX + sumY * sumY));
+        angle[index] = (char)(atan2((float)sumY, (float)sumX) * 180) / 3.1415; // pi macro?? 
+        //printf("here: %d\n", 6);
+        index += BLOCKS * THREADS_PER_BLOCK;
     }
-
-        
-    //printf("here: %d\n", 4);
-
-    //printf("here: %d\n", 5);
-    gradient[index] = (char)sqrt((float)(sumX * sumX + sumY * sumY));
-    angle[index] = (char)(atan2((float)sumY, (float)sumX) * 180) / 3.1415; // pi macro?? 
-    //printf("here: %d\n", 6);
-
     
     
 }
@@ -142,45 +150,48 @@ __global__ void nonMaximumSuppression(unsigned char *gradient, unsigned char *an
 
     if ((index > (width * height)) || (index < 0)) return;
     
-    g = gradient[index];
-    a = (int)angle[index] % 180;
-    
+    while (index < (width * height)) {
+        g = gradient[index];
+        a = (int)angle[index] % 180;
+        
 
-    row = index / width;
-    col = index % height;
+        row = index / width;
+        col = index % height;
 
-    int index1, index2;
+        int index1, index2;
 
-    //a bunch of if conditions and you set valley 1 and valley 2 based on where they lie
-    if ((a >= 157.5) || (a < 22.5)) {
-        index1 = (row + 1) * width + col;
-        index2 = (row - 1) * width + col;
-    } else if ((a >= 22.5) && (a < 67.5)) {
-        index1 = (row + 1) * width + (col - 1);
-        index2 = (row - 1) * width + (col + 1);
-    } else if ((a >= 67.5) && (a < 112.5)) {
-        index1 = row * width + (col + 1);
-        index2 = row * width + (col - 1);
-    } else {
-        index1 = (row + 1) * width + (col + 1);
-        index2 = (row - 1) * width + (col - 1);
-    }
-
-    valley1 = gradient[index1];
-    valley2 = gradient[index2];
-    if ((valley1 < g) && (valley2 < g)) {
-        if (g >= strong) {
-            res[index] = strongVal;
-            // printf("writing strong\n");
-        } else if (g >= weak) { 
-            res[index] = weak;
-            // printf("writing weak\n");
-        } else { 
-            res[index] = 0;
-            // printf("writing zero\n");
+        //a bunch of if conditions and you set valley 1 and valley 2 based on where they lie
+        if ((a >= 157.5) || (a < 22.5)) {
+            index1 = (row + 1) * width + col;
+            index2 = (row - 1) * width + col;
+        } else if ((a >= 22.5) && (a < 67.5)) {
+            index1 = (row + 1) * width + (col - 1);
+            index2 = (row - 1) * width + (col + 1);
+        } else if ((a >= 67.5) && (a < 112.5)) {
+            index1 = row * width + (col + 1);
+            index2 = row * width + (col - 1);
+        } else {
+            index1 = (row + 1) * width + (col + 1);
+            index2 = (row - 1) * width + (col - 1);
         }
-    } else {
-        res[index] = 0;
+
+        valley1 = gradient[index1];
+        valley2 = gradient[index2];
+        if ((valley1 < g) && (valley2 < g)) {
+            if (g >= strong) {
+                res[index] = strongVal;
+                // printf("writing strong\n");
+            } else if (g >= weak) { 
+                res[index] = weak;
+                // printf("writing weak\n");
+            } else { 
+                res[index] = 0;
+                // printf("writing zero\n");
+            }
+        } else {
+            res[index] = 0;
+        }
+        index += BLOCKS * THREADS_PER_BLOCK;
     }
         
     
@@ -209,24 +220,27 @@ __global__ void hysteresis(unsigned char *orig, unsigned char *res, unsigned cha
 
     if ((index > (width * height)) || (index < 0)) return;
 
-    row = index / width;
-    col = index % height;
-    if (orig[index] > weak) {
-        for (int i = -2; i <= 2; i++) {
-            for (int j = -2; j <= 2; j++) {
-                nrow = row + j;
-                ncol = col + i;
-                if (nrow >= 0 && nrow < height && ncol >= 0 && ncol < width) {
-                    nIndex = nrow * width + ncol;
-                    if (orig[nIndex] >= strongVal) {
-                        strongExists = true;
+    while (index < (width * height)) {
+        row = index / width;
+        col = index % height;
+        if (orig[index] > weak) {
+            for (int i = -2; i <= 2; i++) {
+                for (int j = -2; j <= 2; j++) {
+                    nrow = row + j;
+                    ncol = col + i;
+                    if (nrow >= 0 && nrow < height && ncol >= 0 && ncol < width) {
+                        nIndex = nrow * width + ncol;
+                        if (orig[nIndex] >= strongVal) {
+                            strongExists = true;
+                        }
                     }
                 }
             }
-        }
-        if (strongExists) res[index] = strongVal;
-        else res[index] = 0;
-    } else if (orig[index] > strong) res[index] = strongVal;
+            if (strongExists) res[index] = strongVal;
+            else res[index] = 0;
+        } else if (orig[index] > strong) res[index] = strongVal;
+        index += BLOCKS * THREADS_PER_BLOCK;
+    }
     
     
 }
@@ -236,8 +250,10 @@ __global__ void getMaxGradient(unsigned char* gradient, int height, int width, u
     int index = blockIdx.x * blockDim.x + threadIdx.x;
 
     if ((index > (width * height)) || (index < 0)) return;
-
-    atomicMax((int *)maxGradient, (int)gradient[index]);
+    while (index < (width * height)) {
+        atomicMax((int *)maxGradient, (int)gradient[index]);
+        index += BLOCKS * THREADS_PER_BLOCK;
+    }
 }
 
 void cudaCanny(unsigned char* inImage, int width, int height, unsigned char* outImage) {
@@ -262,29 +278,33 @@ void cudaCanny(unsigned char* inImage, int width, int height, unsigned char* out
 
     printf("height: %d, width: %d\n", height, width);
 
-    
+    double kernelStartTime = CycleTimer::currentSeconds();
 
-    gaussianBlur<<<256, 256>>>((unsigned char*)device_image_orig, 
+    gaussianBlur<<<BLOCKS, THREADS_PER_BLOCK>>>((unsigned char*)device_image_orig, 
                             (unsigned char*)device_image_gaussian, 
                             width, height);
 
-    sobelFilters<<<256, 256>>>((unsigned char*)device_image_gaussian, 
+    sobelFilters<<<BLOCKS, THREADS_PER_BLOCK>>>((unsigned char*)device_image_gaussian, 
                             (unsigned char*)device_image_gradient, 
                             (unsigned char*)device_image_angle, 
                             width, height);
 
-    getMaxGradient<<<256, 256>>>((unsigned char *) device_image_gradient,
+    getMaxGradient<<<BLOCKS, THREADS_PER_BLOCK>>>((unsigned char *) device_image_gradient,
                                 height, width, maxGradient);
     
-    nonMaximumSuppression<<<256, 256>>>(device_image_gradient, 
+    nonMaximumSuppression<<<BLOCKS, THREADS_PER_BLOCK>>>(device_image_gradient, 
                                     device_image_angle,  
                                     device_image_suppressed,
                                     width, height, maxGradient);
 
-    hysteresis<<<256, 256>>>((unsigned char*)device_image_suppressed,
+    hysteresis<<<BLOCKS, THREADS_PER_BLOCK>>>((unsigned char*)device_image_suppressed,
                             (unsigned char*)device_image_hysteresis,  
                             (unsigned char*)device_image_gradient,
                             width, height, maxGradient);
+
+    double kernelEndTime = CycleTimer::currentSeconds();
+    double totalKernelTime = kernelEndTime - kernelStartTime;
+    printf("Kernel: %.3f ms\t\t[%.3f GB/s]\n", 1000.f * totalKernelTime, (sizeof(device_image_hysteresis))/(totalKernelTime));
 
     cudaMemcpy(outImage, (void *)device_image_suppressed, sizeof(unsigned char) * width * height, cudaMemcpyDeviceToHost);
     
