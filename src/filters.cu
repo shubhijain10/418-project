@@ -12,7 +12,7 @@ step 5: hysteresis
 // #include <opencv2/opencv.hpp>
 #include "include/global.hpp"
 #include "cuda_runtime.h"
-#include "include/CycleTimer.h"
+#include "include/timing.hpp"
 
 using namespace std;
 #define kernel_size 3
@@ -278,7 +278,7 @@ void cudaCanny(unsigned char* inImage, int width, int height, unsigned char* out
 
     printf("height: %d, width: %d\n", height, width);
 
-    double kernelStartTime = CycleTimer::currentSeconds();
+    Timer totalSimulationTimer;
 
     gaussianBlur<<<BLOCKS, THREADS_PER_BLOCK>>>((unsigned char*)device_image_orig, 
                             (unsigned char*)device_image_gaussian, 
@@ -302,9 +302,8 @@ void cudaCanny(unsigned char* inImage, int width, int height, unsigned char* out
                             (unsigned char*)device_image_gradient,
                             width, height, maxGradient);
 
-    double kernelEndTime = CycleTimer::currentSeconds();
-    double totalKernelTime = kernelEndTime - kernelStartTime;
-    printf("Kernel: %.3f ms\t\t[%.3f GB/s]\n", 1000.f * totalKernelTime, (sizeof(device_image_hysteresis))/(totalKernelTime));
+    double totalSimulationTime = totalSimulationTimer.elapsed();
+    printf("total simulation time: %.6fs\n", totalSimulationTime);
 
     cudaMemcpy(outImage, (void *)device_image_suppressed, sizeof(unsigned char) * width * height, cudaMemcpyDeviceToHost);
     
