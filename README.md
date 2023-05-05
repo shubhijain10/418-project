@@ -14,3 +14,6 @@ Schedule: <br/>
 4/23-4/26: Work on parallelizing by dividing up work between threads in CUDA<br/>
 4/27-4/29: Implement openMP optimizations<br/>
 4/30-5/4: Work on report and poster presentation<br/>
+
+
+Repo: https://github.com/shubhijain10/418-project
