@@ -1,4 +1,4 @@
-# 418-project: Parallelizing Canny Edge Detection Filter
+# Parallelizing Canny Edge Detection Filter
 
 Project Proposal: https://docs.google.com/document/d/1hASzMdud7GXAKxdQjdiTvTc24T7MTAdW6yf9_W6QoqY/edit?usp=sharing<br/>
 Project Milestone: https://docs.google.com/document/d/1CDqjCn6306ivuo0cGrwnpHSrOqOh85VUU9gS14-1eqc/edit?usp=sharing<br/>
